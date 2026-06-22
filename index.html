@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Zenith AI | Alpha Terminal</title>
+    <!-- Syntax Highlighting & Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/tokyo-night-dark.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/js/all.min.js"></script>
+    <style>
+        :root {
+            --neon: #39FF14;
+            --dark-neon: #0b6600;
+            --deep-bg: #030303;
+            --box-bg: rgba(0, 0, 0, 0.96);
+            --sidebar-bg: rgba(0, 5, 0, 0.98);
+            --code-bg: #0a0a0a;
+            --danger: #ff3131;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Courier New', monospace; }
+        body { background-color: var(--deep-bg); color: var(--neon); height: 100vh; display: flex; overflow: hidden; }
+
+        /* MATRIX RAIN */
+        #matrix-canvas { position: fixed; top: 0; left: 0; z-index: 1; opacity: 0.28; pointer-events: none; }
+
+        /* SIDEBAR */
+        .sidebar { 
+            width: 300px; 
+            background: var(--sidebar-bg); 
+            border-right: 1px solid var(--neon); 
+            display: flex; 
+            flex-direction: column; 
+            z-index: 10; 
+            padding: 25px 20px 10px 20px; 
+        }
+        .logo { font-size: 2rem; font-weight: bold; text-align: left; margin-bottom: 10px; text-shadow: 0 0 15px var(--neon); letter-spacing: 3px; }
+        .status-box { font-size: 0.85rem; color: var(--neon); background: rgba(0, 20, 0, 0.4); padding: 12px; border-radius: 4px; margin-bottom: 30px; border: 1px solid var(--dark-neon); letter-spacing: 1px; }
+
+        .btn-new-chat { background: transparent; border: 1px solid var(--neon); color: var(--neon); padding: 12px; border-radius: 4px; cursor: pointer; margin-bottom: 20px; transition: 0.3s; font-weight: bold; width: 100%; text-transform: uppercase; }
+        .btn-new-chat:hover { background: var(--neon); color: #000; box-shadow: 0 0 20px var(--neon); }
+
+        .history-list { flex-grow: 1; overflow-y: auto; border-top: 1px solid var(--dark-neon); padding-top: 15px; }
+        .history-item { 
+            padding: 12px; 
+            font-size: 0.82rem; 
+            cursor: pointer; 
+            transition: 0.2s; 
+            border-radius: 4px; 
+            margin-bottom: 8px; 
+            border: 1px solid transparent; 
+            color: var(--neon); 
+            opacity: 0.7; 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center;
+        }
+        .history-item:hover { background: rgba(57, 255, 20, 0.1); opacity: 1; }
+        .history-item.active { background: rgba(57, 255, 20, 0.2); border-color: var(--neon); color: #fff; opacity: 1; font-weight: bold; }
+        
+        .history-item span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 180px; }
+
+        /* PURGE BUTTON */
+        .btn-purge { color: var(--dark-neon); opacity: 0; transition: 0.3s; padding: 5px; cursor: pointer; }
+        .history-item:hover .btn-purge { opacity: 1; }
+        .btn-purge:hover { color: var(--danger); transform: scale(1.2); }
+
+        /* SIGNATURE */
+        .signature {
+            font-size: 0.85rem; color: var(--dark-neon); text-align: center;
+            padding: 20px 0; margin-top: auto; border-top: 1px solid rgba(57, 255, 20, 0.2);
+            letter-spacing: 1.2px; cursor: default; transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+        .signature span { color: var(--neon); text-shadow: 0 0 5px var(--neon); font-weight: bold; }
+        .signature:hover { transform: scale(1.1); color: var(--neon); }
+        .signature:hover span { text-shadow: 0 0 15px var(--neon), 0 0 30px var(--neon); }
+
+        /* CHAT AREA - FONT SIZE INCREASED */
+        .main-content { flex-grow: 1; display: flex; flex-direction: column; z-index: 10; position: relative; }
+        .chat-area { flex-grow: 1; overflow-y: auto; padding: 40px; display: flex; flex-direction: column; gap: 25px; scroll-behavior: smooth; }
+
+        .message-box { 
+            max-width: 90%; 
+            padding: 22px 28px; 
+            border-radius: 12px; 
+            line-height: 1.7; 
+            font-size: 1.15rem; /* Increased font size for messages */
+            border: 1px solid var(--dark-neon); 
+            position: relative; 
+        }
+        .ai-response { align-self: flex-start; background: var(--box-bg); box-shadow: 0 0 20px rgba(57, 255, 20, 0.15); min-width: 380px; }
+        .ai-response strong { color: #fff; text-shadow: 0 0 5px var(--neon); }
+        .user-query { align-self: flex-end; background: var(--dark-neon); color: white; border-color: var(--neon); }
+
+        /* CODE BOX - FONT SIZE INCREASED */
+        .code-container { margin: 18px 0; background: var(--code-bg); border: 1px solid var(--dark-neon); border-radius: 8px; overflow: hidden; position: relative; width: 100%; }
+        .code-header { background: #1a1a1a; padding: 10px 18px; display: flex; justify-content: space-between; align-items: center; font-size: 0.85rem; color: var(--neon); border-bottom: 1px solid #333; }
+        .copy-btn { background: transparent; border: 1px solid var(--dark-neon); color: var(--neon); padding: 3px 12px; border-radius: 4px; cursor: pointer; font-size: 0.75rem; }
+        
+        pre { margin: 0; padding: 18px; overflow-x: auto; white-space: pre !important; }
+        code { font-family: 'Consolas', monospace !important; font-size: 1.05rem !important; display: block; } /* Increased code font size */
+
+        /* CURSOR */
+        .typing-cursor::after { content: "█"; animation: blink 0.8s infinite; margin-left: 5px; color: var(--neon); }
+        @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
+
+        /* INPUT AREA */
+        .input-block { padding: 30px; background: #000; border-top: 1px solid var(--dark-neon); }
+        .input-wrap { max-width: 1000px; margin: 0 auto; display: flex; gap: 15px; align-items: center; }
+        input { flex-grow: 1; background: transparent; border: 1px solid var(--dark-neon); padding: 18px; color: var(--neon); outline: none; border-radius: 4px; font-size: 1.1rem; }
+        input:disabled { opacity: 0.3; }
+        
+        .btn-send { background: var(--neon); color: #000; border: none; padding: 0 35px; height: 60px; border-radius: 4px; cursor: pointer; font-weight: bold; text-transform: uppercase; }
+        .btn-send:disabled { background: #1a3a1a; cursor: not-allowed; }
+
+        .loader { display: none; text-align: center; font-size: 0.85rem; margin-bottom: 10px; color: var(--neon); font-weight: bold; letter-spacing: 2px; }
+
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-thumb { background: var(--dark-neon); border-radius: 10px; }
+    </style>
+</head>
+<body>
+
+    <canvas id="matrix-canvas"></canvas>
+
+    <div class="sidebar">
+        <div class="logo">Zenith AI</div>
+        <div class="status-box">Version : Alpha</div>
+        <button class="btn-new-chat" onclick="createNewChat()">+ INITIALIZE_STREAM</button>
+        
+        <div class="history-list" id="historyList"></div>
+
+        <div class="signature">Made by <span>YuviPRO1123</span></div>
+    </div>
+
+    <div class="main-content">
+        <div class="chat-area" id="chatArea"></div>
+        <div class="input-block">
+            <div id="loader" class="loader">STREAMING_ZENITH_DATA...</div>
+            <div class="input-wrap">
+                <input type="text" id="userInput" placeholder="[root@zenith:~]# ENTER_COMMAND" autocomplete="off">
+                <button class="btn-send" id="sendBtn" onclick="handleInput()">EXECUTE</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const LYZR_API_KEY = "sk-default-WJyzj8acrXRAYccrVOjt0x6c3laspKmo";
+        const AGENT_ID = "6a375c7f44f862f0270b2f29";
+        const USER_ID = "yuvaansaboopro@gmail.com";
+
+        let conversations = JSON.parse(localStorage.getItem('zenith_alpha_data')) || {};
+        let activeSessionId = null;
+        let isTyping = false;
+
+        // --- MATRIX ENGINE ---
+        const canvas = document.getElementById('matrix-canvas');
+        const ctx = canvas.getContext('2d');
+        canvas.width = window.innerWidth; canvas.height = window.innerHeight;
+        const alphabet = "アカサタナハマヤラワガザダバパイウエオ0123456789";
+        const fontSize = 18;
+        const rain = Array(Math.floor(canvas.width / fontSize)).fill(1);
+        function drawMatrix() {
+            ctx.fillStyle = "rgba(0, 0, 0, 0.08)"; ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = "#39FF14"; ctx.font = fontSize + "px monospace";
+            for(let i = 0; i < rain.length; i++) {
+                const text = alphabet.charAt(Math.floor(Math.random() * alphabet.length));
+                ctx.fillText(text, i * fontSize, rain[i] * fontSize);
+                if(rain[i] * fontSize > canvas.height && Math.random() > 0.98) rain[i] = 0;
+                rain[i]++;
+            }
+        }
+        setInterval(drawMatrix, 40);
+
+        // --- CORE LOGIC ---
+
+        function init() {
+            const keys = Object.keys(conversations);
+            if (keys.length > 0) {
+                activeSessionId = keys[keys.length - 1];
+                renderChatArea();
+            } else {
+                createNewChat();
+            }
+            renderHistoryList();
+        }
+
+        function createNewChat() {
+            if (isTyping) return;
+            const id = "session_" + Date.now();
+            activeSessionId = id;
+            conversations[id] = { title: "New Uplink", messages: [], hasSmartTitle: false };
+            save();
+            renderChatArea();
+            renderHistoryList();
+            appendMessage("ai", "ZENITH_CORE ONLINE. <br>Awaiting instructions for deployment.");
+        }
+
+        function loadConversation(id) {
+            if (isTyping || activeSessionId === id) return;
+            activeSessionId = id;
+            renderChatArea();
+            renderHistoryList();
+        }
+
+        function purgeConversation(event, id) {
+            event.stopPropagation();
+            if (isTyping) return;
+            if (confirm("CRITICAL: PROCEED WITH ENCRYPTED PURGE?")) {
+                delete conversations[id];
+                save();
+                const remainingKeys = Object.keys(conversations);
+                if (activeSessionId === id) {
+                    remainingKeys.length > 0 ? loadConversation(remainingKeys[remainingKeys.length - 1]) : createNewChat();
+                } else {
+                    renderHistoryList();
+                }
+            }
+        }
+
+        async function handleInput() {
+            const input = document.getElementById('userInput');
+            const sendBtn = document.getElementById('sendBtn');
+            const query = input.value.trim();
+            if (!query || isTyping) return;
+
+            input.disabled = true;
+            sendBtn.disabled = true;
+            document.getElementById('loader').style.display = "block";
+
+            appendMessage("user", query);
+            input.value = "";
+
+            try {
+                const response = await fetch('https://zenithalpha.vercel.app/api/chat', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+        "user_id": USER_ID, "agent_id": AGENT_ID, "session_id": activeSessionId + "_titler",
+        "message": `Summarize this query into a strictly 2-word title: "${userPrompt}". Respond ONLY with the title.`
+    })
+
+
+                const data = await response.json();
+                const aiFormatted = formatAIResponse(data.response);
+                await appendMessageAnimated("ai", aiFormatted);
+
+                if (!conversations[activeSessionId].hasSmartTitle) generateSmartTitle(query);
+
+            } catch (err) {
+                appendMessage("ai", "<strong>SYSTEM_ERR:</strong> COGNITIVE_UPLINK_FAILURE");
+            } finally {
+                input.disabled = false;
+                sendBtn.disabled = false;
+                document.getElementById('loader').style.display = "none";
+                input.focus();
+            }
+        }
+
+        function formatAIResponse(text) {
+            let placeholders = [];
+            text = text.replace(/```(\w*)\n([\s\S]*?)```/g, (match, lang, code) => {
+                const id = 'code-' + Math.random().toString(36).substr(2, 9);
+                const placeholder = `__CODE_BLOCK_${placeholders.length}__`;
+                placeholders.push({
+                    id: placeholder,
+                    html: `<div class="code-container"><div class="code-header"><span>${lang.toUpperCase() || 'SOURCE'}</span><button class="copy-btn" onclick="copyCode('${id}')">Copy</button></div><pre><code id="${id}" class="language-${lang}">${code.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</code></pre></div>`
+                });
+                return placeholder;
+            });
+
+            return text
+                .replace(/[#]{1,6}\s+(.*)/g, '<strong>$1</strong>')
+                .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                .replace(/\n/g, '<br>')
+                .replace(/__CODE_BLOCK_(\d+)__/g, (m, i) => placeholders[i].html);
+        }
+
+        async function appendMessageAnimated(role, html) {
+            isTyping = true;
+            conversations[activeSessionId].messages.push({ role, text: html });
+            
+            const area = document.getElementById('chatArea');
+            const div = document.createElement('div');
+            div.className = `message-box ai-response typing-cursor`;
+            area.appendChild(div);
+
+            let i = 0;
+            let currentDisplay = "";
+            let isTag = false;
+
+            return new Promise((resolve) => {
+                function type() {
+                    if (i < html.length) {
+                        let char = html.charAt(i);
+                        if (char === "<") isTag = true;
+                        if (char === ">") isTag = false;
+                        currentDisplay += char;
+                        div.innerHTML = currentDisplay;
+                        i++;
+                        if (isTag) type();
+                        else {
+                            setTimeout(type, 10);
+                            area.scrollTop = area.scrollHeight;
+                        }
+                    } else {
+                        div.classList.remove('typing-cursor');
+                        area.querySelectorAll('pre code').forEach((el) => hljs.highlightElement(el));
+                        isTyping = false;
+                        save();
+                        resolve();
+                    }
+                }
+                type();
+            });
+        }
+
+        function appendMessage(role, text) {
+            if (role === "ai") return appendMessageAnimated(role, text);
+            conversations[activeSessionId].messages.push({ role, text });
+            const area = document.getElementById('chatArea');
+            const div = document.createElement('div');
+            div.className = `message-box user-query`;
+            div.innerHTML = text;
+            area.appendChild(div);
+            area.scrollTop = area.scrollHeight;
+            save();
+        }
+
+        function renderChatArea() {
+            const area = document.getElementById('chatArea');
+            area.innerHTML = "";
+            if (conversations[activeSessionId]) {
+                conversations[activeSessionId].messages.forEach(msg => {
+                    const div = document.createElement('div');
+                    div.className = `message-box ${msg.role === 'ai' ? 'ai-response' : 'user-query'}`;
+                    div.innerHTML = msg.text;
+                    area.appendChild(div);
+                });
+            }
+            area.querySelectorAll('pre code').forEach((el) => hljs.highlightElement(el));
+            area.scrollTop = area.scrollHeight;
+        }
+
+        async function generateSmartTitle(userPrompt) {
+            try {
+                const response = await fetch('https://zenithalpha.vercel.app/api/chat', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+        "user_id": USER_ID, "agent_id": AGENT_ID, "session_id": activeSessionId, "message": query
+    })
+});
+                const data = await response.json();
+                let title = data.response.trim();
+                title = title.charAt(0).toUpperCase() + title.slice(1).replace(/[".]/g, "");
+                conversations[activeSessionId].title = title;
+                conversations[activeSessionId].hasSmartTitle = true;
+                save();
+                renderHistoryList();
+            } catch (e) {
+                conversations[activeSessionId].title = userPrompt.charAt(0).toUpperCase() + userPrompt.slice(1, 20);
+                save();
+                renderHistoryList();
+            }
+        }
+
+        function renderHistoryList() {
+            const list = document.getElementById('historyList');
+            list.innerHTML = "";
+            Object.keys(conversations).reverse().forEach(id => {
+                const item = document.createElement('div');
+                item.className = `history-item ${id === activeSessionId ? 'active' : ''}`;
+                item.innerHTML = `
+                    <span><i class="fas fa-terminal" style="font-size:0.7rem; margin-right:8px; opacity:0.5"></i> ${conversations[id].title}</span>
+                    <i class="fas fa-skull btn-purge" onclick="purgeConversation(event, '${id}')"></i>
+                `;
+                item.onclick = () => loadConversation(id);
+                list.appendChild(item);
+            });
+        }
+
+        function copyCode(id) {
+            const code = document.getElementById(id).innerText;
+            navigator.clipboard.writeText(code).then(() => {
+                const btn = document.querySelector(`button[onclick="copyCode('${id}')"]`);
+                btn.innerText = "COPIED";
+                setTimeout(() => btn.innerText = "COPY", 2000);
+            });
+        }
+
+        function save() { localStorage.setItem('zenith_alpha_data', JSON.stringify(conversations)); }
+
+        document.getElementById('userInput').addEventListener('keypress', (e) => { 
+            if(e.key === 'Enter' && !document.getElementById('userInput').disabled) handleInput(); 
+        });
+
+        window.onload = init;
+    </script>
+</body>
+</html>
